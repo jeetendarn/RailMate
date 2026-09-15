@@ -1,0 +1,124 @@
+[
+  {
+    "train_number": "12610",
+    "train_name": "Mysuru - MGR Chennai Central Express",
+    "origin": "Mysuru",
+    "destination": "Chennai",
+    "departure": "18:30",
+    "arrival": "05:45",
+    "duration": "11h 15m",
+    "running_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "availability": {
+      "1A": "AVAILABLE",
+      "2A": "AVAILABLE",
+      "3A": "AVAILABLE",
+      "SL": "RAC 18",
+      "CC": "AVAILABLE"
+    },
+    "fares": {
+      "1A": 2850,
+      "2A": 1650,
+      "3A": 1150,
+      "SL": 450,
+      "CC": 850
+    },
+    "stops": 12
+  },
+  {
+    "train_number": "16221",
+    "train_name": "Mysuru - Chennai Express",
+    "origin": "Mysuru",
+    "destination": "Chennai",
+    "departure": "21:15",
+    "arrival": "07:10",
+    "duration": "9h 55m",
+    "running_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "availability": {
+      "1A": "NOT AVAILABLE",
+      "2A": "AVAILABLE",
+      "3A": "AVAILABLE",
+      "SL": "AVAILABLE",
+      "CC": "NOT AVAILABLE"
+    },
+    "fares": {
+      "1A": 3000,
+      "2A": 1450,
+      "3A": 980,
+      "SL": 420,
+      "CC": 800
+    },
+    "stops": 9
+  },
+  {
+    "train_number": "22638",
+    "train_name": "West Coast Express",
+    "origin": "Mysuru",
+    "destination": "Chennai",
+    "departure": "16:00",
+    "arrival": "03:30",
+    "duration": "11h 30m",
+    "running_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "availability": {
+      "1A": "NOT AVAILABLE",
+      "2A": "RAC 5",
+      "3A": "AVAILABLE",
+      "SL": "AVAILABLE",
+      "CC": "AVAILABLE"
+    },
+    "fares": {
+      "1A": 2700,
+      "2A": 1500,
+      "3A": 1000,
+      "SL": 400,
+      "CC": 780
+    },
+    "stops": 15
+  },
+  {
+    "train_number": "12675",
+    "train_name": "Kovai Express",
+    "origin": "Mysuru",
+    "destination": "Chennai",
+    "departure": "06:15",
+    "arrival": "17:00",
+    "duration": "10h 45m",
+    "running_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "availability": {
+      "1A": "AVAILABLE",
+      "2A": "AVAILABLE",
+      "3A": "AVAILABLE",
+      "SL": "AVAILABLE",
+      "CC": "AVAILABLE"
+    },
+    "fares": {
+      "1A": 2800,
+      "2A": 1550,
+      "3A": 1050,
+      "SL": 430,
+      "CC": 820
+    },
+    "stops": 11
+  },
+  {
+    "train_number": "12007",
+    "train_name": "Shatabdi Express",
+    "origin": "Mysuru",
+    "destination": "Chennai",
+    "departure": "05:30",
+    "arrival": "14:45",
+    "duration": "9h 15m",
+    "running_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "availability": {
+      "CC": "AVAILABLE",
+      "2S": "AVAILABLE",
+      "2A": "NOT AVAILABLE",
+      "3A": "NOT AVAILABLE",
+      "SL": "NOT AVAILABLE"
+    },
+    "fares": {
+      "CC": 950,
+      "2S": 550
+    },
+    "stops": 7
+  }
+]
