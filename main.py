@@ -7,6 +7,9 @@ from agent.agent import (
 from agent.schemas import TravelRequest
 from agent.tool_agent import RailMateToolAgent
 
+from tools.train_status import get_train_status, get_train_route
+from tools.pnr_status import get_pnr_status
+
 from tools.recommendation import (
     find_cheapest,
     find_fastest,
@@ -307,7 +310,7 @@ def normalize_text(text):
 def main():
 
     print("=" * 70)
-    print("🤖 RAILMATE AI AGENT v0.6")
+    print("🤖 RAILMATE AI AGENT v0.7")
     print("=" * 70)
 
     print("\nPowered by Ollama + Llama 3.2")
@@ -317,6 +320,7 @@ def main():
 
     print("\nType 'exit' to quit.")
     print("💡 You can speak naturally with RailMate.")
+    print("💡 v0.7: Train status, route and DEMO PNR lookup are available.")
 
     state = STATE_COLLECTING
 
@@ -341,6 +345,72 @@ def main():
 
             print("\nRailMate: Goodbye! 🚆")
             break
+
+        # ======================================================
+        # v0.7 OPERATIONAL QUERIES
+        # These can be asked at any point without a travel search.
+        # ======================================================
+
+        import re
+        normalized = normalize_text(user_input)
+
+        pnr_match = re.search(r"\b\d{10}\b", user_input)
+        status_keywords = (
+            "status", "running", "delay", "delayed",
+            "on time", "platform"
+        )
+        route_keywords = ("route", "stops", "stations")
+
+        train_match = re.search(r"\b\d{5}\b", user_input)
+
+        if pnr_match and ("pnr" in normalized or "ticket" in normalized):
+            result = get_pnr_status(pnr_match.group(0))
+            print("\n" + "=" * 70)
+            print("🎫 DEMO PNR STATUS")
+            print("=" * 70)
+            print("\n⚠ DEMO MODE — SAMPLE PNR DATA")
+            if result.get("success"):
+                print(f"PNR:        {result['pnr']}")
+                print(f"Train:      {result['train_number']}")
+                print(f"Passengers: {result['passengers']}")
+                print(f"Status:     {result['status']}")
+                print(f"Coach:      {result['coach']}")
+                print(f"Berth(s):   {', '.join(result['berths'])}")
+            else:
+                print(f"\nRailMate: {result['message']}")
+            continue
+
+        if train_match and any(k in normalized for k in route_keywords):
+            result = get_train_route(train_match.group(0))
+            print("\n" + "=" * 70)
+            print("🗺 TRAIN ROUTE")
+            print("=" * 70)
+            print("\n⚠ DEMO MODE — SAMPLE ROUTE DATA")
+            if result.get("success"):
+                print(f"\nTrain: {result['train_number']}")
+                print(f"Stops: {result['stop_count']}")
+                print("Route:")
+                print(" → ".join(result['stops']))
+            else:
+                print(f"\nRailMate: {result['message']}")
+            continue
+
+        if train_match and any(k in normalized for k in status_keywords):
+            result = get_train_status(train_match.group(0))
+            print("\n" + "=" * 70)
+            print("🚦 TRAIN STATUS")
+            print("=" * 70)
+            print("\n⚠ DEMO MODE — SAMPLE OPERATIONAL DATA")
+            if result.get("success"):
+                print(f"\nTrain:              {result['train_number']}")
+                print(f"Status:             {result['status']}")
+                print(f"Delay:              {result['delay_minutes']} minutes")
+                print(f"Expected departure: {result['expected_departure']}")
+                print(f"Expected arrival:   {result['expected_arrival']}")
+                print(f"Platform:           {result['platform']}")
+            else:
+                print(f"\nRailMate: {result['message']}")
+            continue
 
         # ======================================================
         # COLLECTING TRAVEL INFORMATION

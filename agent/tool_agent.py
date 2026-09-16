@@ -7,6 +7,8 @@ from tools.recommendation import (
     recommend_trains,
     filter_before_arrival,
 )
+from tools.train_status import get_train_status, get_train_route
+from tools.pnr_status import get_pnr_status
 
 
 MODEL = "llama3.2"
@@ -154,6 +156,23 @@ class RailMateToolAgent:
             "message":
                 "Train not found.",
         }
+
+    # ==========================================================
+    # TOOL: TRAIN STATUS
+    # ==========================================================
+
+    def tool_train_status(self, train_number: str):
+        return get_train_status(train_number)
+
+    def tool_train_route(self, train_number: str):
+        return get_train_route(train_number)
+
+    # ==========================================================
+    # TOOL: PNR STATUS
+    # ==========================================================
+
+    def tool_pnr_status(self, pnr: str):
+        return get_pnr_status(pnr)
 
     # ==========================================================
     # TOOL: GET TRAIN DETAILS
@@ -425,9 +444,43 @@ Use only AFTER search_trains.
 
             {
                 "type": "function",
-
                 "function": {
-
+                    "name": "train_status",
+                    "description": "Get DEMO operational status for a train number.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"train_number": {"type": "string"}},
+                        "required": ["train_number"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "train_route",
+                    "description": "Get DEMO route and stop information for a train number.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"train_number": {"type": "string"}},
+                        "required": ["train_number"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "pnr_status",
+                    "description": "Get DEMO PNR status. Use only for clearly supplied PNR numbers.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"pnr": {"type": "string"}},
+                        "required": ["pnr"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
                     "name":
                         "recommend_trains",
 
@@ -618,6 +671,15 @@ before this tool can work.
                 **arguments
             )
 
+        elif name == "train_status":
+            return self.tool_train_status(**arguments)
+
+        elif name == "train_route":
+            return self.tool_train_route(**arguments)
+
+        elif name == "pnr_status":
+            return self.tool_pnr_status(**arguments)
+
         elif name == "recommend_trains":
 
             return self.tool_recommend_trains(
@@ -665,6 +727,9 @@ RAILWAY DATA:
 DEMO DATA ONLY.
 
 NEVER invent railway information.
+
+STATUS AND PNR DATA ARE DEMO ONLY.
+Use train_status, train_route, or pnr_status only when the user explicitly asks for them.
 
 MANDATORY WORKFLOW:
 
