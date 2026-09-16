@@ -197,7 +197,7 @@ def print_recommendation(option, explanation):
 
 
 def collect_passenger_details(request):
-
+    """Collect and validate passenger details for the demo booking review."""
     print("\n" + "=" * 70)
     print("👤 PASSENGER DETAILS")
     print("=" * 70)
@@ -207,14 +207,24 @@ def collect_passenger_details(request):
     passengers = []
     count = int(request.passengers or 1)
 
+    valid_genders = {"Male", "Female", "Other"}
+    valid_berths = {
+        "Lower",
+        "Upper",
+        "Middle",
+        "Side Lower",
+        "Side Upper",
+        "No Preference",
+    }
+
     for i in range(1, count + 1):
         print(f"\nPassenger {i} of {count}")
 
         while True:
             name = input("Name: ").strip()
-            if name:
+            if len(name) >= 2:
                 break
-            print("Please enter the passenger name.")
+            print("Please enter a valid passenger name (at least 2 characters).")
 
         while True:
             age_text = input("Age: ").strip()
@@ -228,13 +238,26 @@ def collect_passenger_details(request):
 
         while True:
             gender = input("Gender (Male/Female/Other): ").strip().title()
-            if gender in {"Male", "Female", "Other"}:
+            if gender in valid_genders:
                 break
             print("Please enter Male, Female, or Other.")
 
-        berth = input("Berth preference (Lower/Upper/Middle/Side Lower/Side Upper/No Preference): ").strip().title()
-        if not berth:
-            berth = "No Preference"
+        while True:
+            berth = input(
+                "Berth preference "
+                "(Lower/Upper/Middle/Side Lower/Side Upper/No Preference): "
+            ).strip().title()
+
+            if not berth:
+                berth = "No Preference"
+
+            if berth in valid_berths:
+                break
+
+            print(
+                "Please choose: Lower, Upper, Middle, Side Lower, "
+                "Side Upper, or No Preference."
+            )
 
         passengers.append({
             "name": name,
@@ -244,6 +267,95 @@ def collect_passenger_details(request):
         })
 
     return passengers
+
+
+def edit_passenger_details(passengers):
+    """Edit one passenger and return the updated passenger list."""
+    if not passengers:
+        print("\nRailMate: No passenger details available.")
+        return passengers
+
+    while True:
+        print("\n" + "=" * 70)
+        print("✏ EDIT PASSENGER")
+        print("=" * 70)
+
+        for i, passenger in enumerate(passengers, 1):
+            print(
+                f"{i}. {passenger['name']} | Age: {passenger['age']} | "
+                f"Gender: {passenger['gender']} | "
+                f"Berth: {passenger['berth_preference']}"
+            )
+
+        print("\n0. Done editing")
+
+        choice = input("\nSelect passenger number: ").strip()
+
+        if choice == "0":
+            return passengers
+
+        if not choice.isdigit() or not (1 <= int(choice) <= len(passengers)):
+            print("Please select a valid passenger number.")
+            continue
+
+        index = int(choice) - 1
+        passenger = passengers[index]
+
+        print(f"\nEditing Passenger {choice}")
+
+        name = input(f"Name [{passenger['name']}]: ").strip()
+        if name:
+            while len(name) < 2:
+                print("Please enter a valid name.")
+                name = input(f"Name [{passenger['name']}]: ").strip()
+            passenger["name"] = name
+
+        while True:
+            age_text = input(f"Age [{passenger['age']}]: ").strip()
+            if not age_text:
+                break
+            try:
+                age = int(age_text)
+                if 1 <= age <= 120:
+                    passenger["age"] = age
+                    break
+            except ValueError:
+                pass
+            print("Please enter a valid age between 1 and 120.")
+
+        while True:
+            gender = input(
+                f"Gender [{passenger['gender']}] (Male/Female/Other): "
+            ).strip().title()
+            if not gender:
+                break
+            if gender in {"Male", "Female", "Other"}:
+                passenger["gender"] = gender
+                break
+            print("Please enter Male, Female, or Other.")
+
+        while True:
+            berth = input(
+                f"Berth [{passenger['berth_preference']}] "
+                "(Lower/Upper/Middle/Side Lower/Side Upper/No Preference): "
+            ).strip().title()
+
+            if not berth:
+                break
+
+            if berth in {
+                "Lower", "Upper", "Middle",
+                "Side Lower", "Side Upper", "No Preference"
+            }:
+                passenger["berth_preference"] = berth
+                break
+
+            print(
+                "Please choose: Lower, Upper, Middle, Side Lower, "
+                "Side Upper, or No Preference."
+            )
+
+        print("\nPassenger updated successfully.")
 
 def print_booking_review(request, option, passengers=None):
 
@@ -324,8 +436,10 @@ def print_booking_review(request, option, passengers=None):
         "through an authorized booking provider."
     )
 
-    print("\n1. Continue")
-    print("2. Go back")
+    print("\n1. Confirm & Continue")
+    print("2. Edit Passenger")
+    print("3. Change Train")
+    print("4. Cancel")
 
 
 def booking_handoff():
@@ -388,6 +502,7 @@ def main():
     request = TravelRequest()
 
     selected_option = None
+    passenger_details = []
 
     agent = RailMateToolAgent()
 
@@ -582,12 +697,12 @@ def main():
 
                 selected_option = options[0]
 
-                request.passenger_details = collect_passenger_details(request)
+                passenger_details = collect_passenger_details(request)
 
                 print_booking_review(
                     request,
                     selected_option,
-                    request.passenger_details
+                    passenger_details
                 )
 
                 state = STATE_REVIEW
@@ -640,6 +755,7 @@ def main():
 
                 request = TravelRequest()
                 selected_option = None
+                passenger_details = []
 
                 state = STATE_COLLECTING
 
@@ -874,12 +990,12 @@ def main():
 
                 selected_option = found
 
-                request.passenger_details = collect_passenger_details(request)
+                passenger_details = collect_passenger_details(request)
 
                 print_booking_review(
                     request,
                     selected_option,
-                    request.passenger_details
+                    passenger_details
                 )
 
                 state = STATE_REVIEW
@@ -985,6 +1101,10 @@ def main():
 
             text = normalize_text(user_input)
 
+            # --------------------------------------------------
+            # CONFIRM & CONTINUE
+            # --------------------------------------------------
+
             if text in {
                 "1",
                 "yes",
@@ -993,6 +1113,7 @@ def main():
                 "proceed",
                 "book",
                 "continue booking",
+                "confirm and continue",
             }:
 
                 booking_handoff()
@@ -1000,34 +1121,85 @@ def main():
                 state = STATE_RESULTS
 
                 print(
-                    "\nRailMate: You are back at "
-                    "the train results."
+                    "\nRailMate: You are back at the train results."
                 )
 
                 continue
+
+            # --------------------------------------------------
+            # EDIT PASSENGER
+            # --------------------------------------------------
 
             if text in {
                 "2",
-                "back",
-                "go back",
-                "cancel",
+                "edit",
+                "edit passenger",
+                "edit passengers",
             }:
 
-                print_options(
-                    agent.last_recommendations
+                passenger_details = edit_passenger_details(
+                    passenger_details
                 )
+
+                print_booking_review(
+                    request,
+                    selected_option,
+                    passenger_details
+                )
+
+                state = STATE_REVIEW
+                continue
+
+            # --------------------------------------------------
+            # CHANGE TRAIN
+            # --------------------------------------------------
+
+            if text in {
+                "3",
+                "change train",
+                "select another train",
+                "choose another train",
+            }:
+
+                print_options(agent.last_recommendations)
 
                 state = STATE_RESULTS
 
+                print(
+                    "\nRailMate: Select a train number or "
+                    "choose one of the available options."
+                )
+
                 continue
 
-            print(
-                "\nPlease choose:"
-            )
+            # --------------------------------------------------
+            # CANCEL
+            # --------------------------------------------------
 
-            print("1. Continue")
-            print("2. Go back")
+            if text in {
+                "4",
+                "cancel",
+                "cancel booking",
+                "go back",
+                "back",
+            }:
 
+                print_options(agent.last_recommendations)
+
+                state = STATE_RESULTS
+
+                print(
+                    "\nRailMate: Booking review cancelled. "
+                    "You are back at the train results."
+                )
+
+                continue
+
+            print("\nPlease choose:")
+            print("1. Confirm & Continue")
+            print("2. Edit Passenger")
+            print("3. Change Train")
+            print("4. Cancel")
 
 if __name__ == "__main__":
     main()
