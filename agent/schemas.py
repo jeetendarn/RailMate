@@ -2,6 +2,13 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
+class PassengerDetail(BaseModel):
+    name: str
+    age: int
+    gender: str
+    berth_preference: str = "No Preference"
+
+
 class TravelRequest(BaseModel):
     origin: Optional[str] = None
     destination: Optional[str] = None
@@ -11,6 +18,7 @@ class TravelRequest(BaseModel):
     departure_time: Optional[str] = None
     arrival_before: Optional[str] = None
     preference: Optional[str] = None
+    passenger_details: List[PassengerDetail] = Field(default_factory=list)
 
 
 class Train(BaseModel):

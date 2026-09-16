@@ -194,7 +194,58 @@ def print_recommendation(option, explanation):
     print(explanation)
 
 
-def print_booking_review(request, option):
+
+
+def collect_passenger_details(request):
+
+    print("\n" + "=" * 70)
+    print("👤 PASSENGER DETAILS")
+    print("=" * 70)
+    print("\nRailMate needs the following details before booking review.")
+    print("⚠ DEMO MODE — details are kept only in this running session.\n")
+
+    passengers = []
+    count = int(request.passengers or 1)
+
+    for i in range(1, count + 1):
+        print(f"\nPassenger {i} of {count}")
+
+        while True:
+            name = input("Name: ").strip()
+            if name:
+                break
+            print("Please enter the passenger name.")
+
+        while True:
+            age_text = input("Age: ").strip()
+            try:
+                age = int(age_text)
+                if 1 <= age <= 120:
+                    break
+            except ValueError:
+                pass
+            print("Please enter a valid age between 1 and 120.")
+
+        while True:
+            gender = input("Gender (Male/Female/Other): ").strip().title()
+            if gender in {"Male", "Female", "Other"}:
+                break
+            print("Please enter Male, Female, or Other.")
+
+        berth = input("Berth preference (Lower/Upper/Middle/Side Lower/Side Upper/No Preference): ").strip().title()
+        if not berth:
+            berth = "No Preference"
+
+        passengers.append({
+            "name": name,
+            "age": age,
+            "gender": gender,
+            "berth_preference": berth,
+        })
+
+    return passengers
+
+def print_booking_review(request, option, passengers=None):
 
     print("\n")
     print("=" * 70)
@@ -250,6 +301,16 @@ def print_booking_review(request, option):
         f"Estimated total fare: "
         f"₹{option['total_fare']}"
     )
+
+    if passengers:
+        print("\nPASSENGER DETAILS")
+        for i, passenger in enumerate(passengers, 1):
+            print(
+                f"{i}. {passenger['name']} | "
+                f"Age: {passenger['age']} | "
+                f"Gender: {passenger['gender']} | "
+                f"Berth: {passenger['berth_preference']}"
+            )
 
     print("\n" + "-" * 40)
 
@@ -310,7 +371,7 @@ def normalize_text(text):
 def main():
 
     print("=" * 70)
-    print("🤖 RAILMATE AI AGENT v0.7")
+    print("🤖 RAILMATE AI AGENT v0.8")
     print("=" * 70)
 
     print("\nPowered by Ollama + Llama 3.2")
@@ -320,7 +381,7 @@ def main():
 
     print("\nType 'exit' to quit.")
     print("💡 You can speak naturally with RailMate.")
-    print("💡 v0.7: Train status, route and DEMO PNR lookup are available.")
+    print("💡 v0.8: Passenger details + booking review + v0.7 status/PNR features are available.")
 
     state = STATE_COLLECTING
 
@@ -521,9 +582,12 @@ def main():
 
                 selected_option = options[0]
 
+                request.passenger_details = collect_passenger_details(request)
+
                 print_booking_review(
                     request,
-                    selected_option
+                    selected_option,
+                    request.passenger_details
                 )
 
                 state = STATE_REVIEW
@@ -810,9 +874,12 @@ def main():
 
                 selected_option = found
 
+                request.passenger_details = collect_passenger_details(request)
+
                 print_booking_review(
                     request,
-                    selected_option
+                    selected_option,
+                    request.passenger_details
                 )
 
                 state = STATE_REVIEW
