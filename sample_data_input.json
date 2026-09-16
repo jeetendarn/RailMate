@@ -1,0 +1,83 @@
+{
+  "description": "RailMate sample/demo input cases. These are not live railway requests or live availability.",
+  "mode": "DEMO",
+  "examples": [
+    {
+      "id": "search_001",
+      "input": "I want to travel from Mysore to Chennai",
+      "expected_missing": [
+        "journey_date",
+        "passengers",
+        "travel_class"
+      ]
+    },
+    {
+      "id": "search_002",
+      "input": "September 21, 2 people, 2A, evening",
+      "context": {
+        "origin": "Mysore",
+        "destination": "Chennai"
+      },
+      "expected_request": {
+        "origin": "Mysore",
+        "destination": "Chennai",
+        "journey_date": "2026-09-21",
+        "passengers": 2,
+        "travel_class": "2A",
+        "preference": "evening"
+      }
+    },
+    {
+      "id": "search_003",
+      "input": "Mysore to Chennai on September 21 for 2 people in 2A"
+    },
+    {
+      "id": "search_004",
+      "input": "Show me the cheapest"
+    },
+    {
+      "id": "search_005",
+      "input": "Show me the fastest"
+    },
+    {
+      "id": "search_006",
+      "input": "Show only confirmed seats"
+    },
+    {
+      "id": "search_007",
+      "input": "Show trains after 6 PM"
+    },
+    {
+      "id": "search_008",
+      "input": "I need to arrive before 6 AM"
+    },
+    {
+      "id": "search_009",
+      "input": "Compare 16221 and 12610"
+    },
+    {
+      "id": "ops_001",
+      "input": "Check PNR 1234567890",
+      "mode": "DEMO"
+    },
+    {
+      "id": "ops_002",
+      "input": "Show status of train 16221",
+      "mode": "DEMO"
+    },
+    {
+      "id": "ops_003",
+      "input": "Show route of train 16221",
+      "mode": "DEMO"
+    },
+    {
+      "id": "ops_004",
+      "input": "Show my last booking",
+      "mode": "SESSION_DEMO"
+    },
+    {
+      "id": "ops_005",
+      "input": "Start a new search"
+    }
+  ]
+}
