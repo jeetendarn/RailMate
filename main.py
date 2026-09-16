@@ -5,18 +5,24 @@ from agent.agent import (
 )
 
 from agent.schemas import TravelRequest
-
 from agent.tool_agent import RailMateToolAgent
 
+from tools.recommendation import (
+    find_cheapest,
+    find_fastest,
+    find_earliest,
+    find_latest,
+    filter_confirmed,
+    filter_after_time,
+    filter_before_arrival,
+    compare_trains,
+)
 
-STATE_COLLECTING = "COLLECTING"
-STATE_RESULTS = "RESULTS"
-STATE_BOOKING_REVIEW = "BOOKING_REVIEW"
 
+STATE_COLLECTING = "collecting"
+STATE_RESULTS = "results"
+STATE_REVIEW = "review"
 
-# ==============================================================
-# DISPLAY REQUEST
-# ==============================================================
 
 def print_request(request):
 
@@ -32,76 +38,108 @@ def print_request(request):
     print(f"Preference: {request.preference}")
 
 
-# ==============================================================
-# DISPLAY TRAIN OPTIONS
-# ==============================================================
-
-def print_train_options(results):
+def print_options(options, title="🚆 RAILMATE AI — TRAIN OPTIONS"):
 
     print("\n")
     print("=" * 70)
-    print("🚆 RAILMATE AI — TRAIN OPTIONS")
+    print(title)
     print("=" * 70)
 
     print("\n⚠ DEMO MODE — SAMPLE RAILWAY DATA")
     print("Live railway availability is not connected yet.\n")
 
-    for index, option in enumerate(
-        results,
-        start=1
-    ):
+    if not options:
+        print("No matching trains found.")
+        return
+
+    for index, option in enumerate(options, 1):
 
         print(
-            f"{index}. "
-            f"{option.train_number} — "
-            f"{option.train_name}"
+            f"{index}. {option['train_number']} — "
+            f"{option['train_name']}"
         )
 
         print(
-            f"   Mysuru {option.departure} → "
-            f"Chennai {option.arrival}"
+            f"   {option['departure']} → "
+            f"{option['arrival']}"
         )
 
         print(
-            f"   Duration: {option.duration}"
+            f"   Duration: {option['duration']}"
         )
 
         print(
-            f"   {option.travel_class}: "
-            f"{option.availability}"
+            f"   {option['travel_class']}: "
+            f"{option['availability']}"
         )
 
         print(
-            f"   Fare: ₹{option.fare_per_passenger} "
+            f"   Fare: ₹{option['fare_per_passenger']} "
             f"per passenger"
         )
 
         print(
-            f"   Total for {option.travel_class}: "
-            f"₹{option.total_fare}"
+            f"   Total for "
+            f"{option.get('total_fare', 0) / option['fare_per_passenger']:.0f}: "
+            f"₹{option['total_fare']}"
         )
 
         print(
-            f"   Agent Score: {option.score}"
+            f"   Agent Score: {option['score']}"
         )
 
         print()
 
 
-# ==============================================================
-# RECOMMENDATION
-# ==============================================================
+def print_single_option(option, heading):
 
-def print_recommendation(
-    request,
-    results,
-    explanation,
-):
-
-    if not results:
+    if not option:
+        print("\n❌ No matching train found.")
         return
 
-    selected = results[0]
+    print("\n" + "=" * 70)
+    print(heading)
+    print("=" * 70)
+
+    print(
+        f"\n🚆 {option['train_number']} — "
+        f"{option['train_name']}"
+    )
+
+    print(
+        f"Departure: {option['departure']}"
+    )
+
+    print(
+        f"Arrival:   {option['arrival']}"
+    )
+
+    print(
+        f"Duration:  {option['duration']}"
+    )
+
+    print(
+        f"Class:     {option['travel_class']}"
+    )
+
+    print(
+        f"Status:    {option['availability']}"
+    )
+
+    print(
+        f"Fare:      ₹{option['fare_per_passenger']} "
+        f"per passenger"
+    )
+
+    print(
+        f"Total:     ₹{option['total_fare']}"
+    )
+
+
+def print_recommendation(option, explanation):
+
+    if not option:
+        return
 
     print("\n")
     print("=" * 70)
@@ -110,238 +148,50 @@ def print_recommendation(
 
     print(
         f"\nRecommended: "
-        f"{selected.train_number} — "
-        f"{selected.train_name}"
+        f"{option['train_number']} — "
+        f"{option['train_name']}"
     )
 
     print(
-        f"Departure: {selected.departure}"
+        f"Departure: {option['departure']}"
     )
 
     print(
-        f"Arrival: {selected.arrival}"
+        f"Arrival: {option['arrival']}"
     )
 
     print(
-        f"Duration: {selected.duration}"
+        f"Duration: {option['duration']}"
     )
 
     print(
-        f"Class: {selected.travel_class}"
+        f"Class: {option['travel_class']}"
     )
 
     print(
-        f"Availability: {selected.availability}"
+        f"Availability: {option['availability']}"
     )
 
     print(
-        f"Fare: ₹{selected.fare_per_passenger} "
+        f"Fare: ₹{option['fare_per_passenger']} "
         f"per passenger"
     )
 
     print(
-        f"Passengers: {request.passengers}"
+        f"Passengers: "
+        f"{int(option['total_fare'] / option['fare_per_passenger'])}"
     )
 
     print(
-        f"Estimated total: ₹{selected.total_fare}"
+        f"Estimated total: ₹{option['total_fare']}"
     )
 
     print("\nWhy this train?")
 
     print(explanation)
 
-    print("\nWhat would you like to do?")
 
-    print("1. Select recommended train")
-    print("2. See all train options")
-    print("3. Change preferences")
-    print("4. Start a new search")
-
-    print(
-        "\nYou can also type a natural request such as:"
-    )
-
-    print(
-        '• "Select train 16221"'
-    )
-
-    print(
-        '• "Show me the cheapest"'
-    )
-
-    print(
-        '• "Show me the fastest"'
-    )
-
-
-# ==============================================================
-# FIND TRAIN BY NUMBER
-# ==============================================================
-
-def find_train_by_number(
-    results,
-    train_number,
-):
-
-    train_number = str(
-        train_number
-    ).strip()
-
-    for option in results:
-
-        if str(
-            option.train_number
-        ) == train_number:
-
-            return option
-
-    return None
-
-
-# ==============================================================
-# SELECT TRAIN
-# ==============================================================
-
-def select_train(
-    results,
-    user_input,
-):
-
-    text = user_input.lower().strip()
-
-    # ----------------------------------------------------------
-    # Recommended train
-    # ----------------------------------------------------------
-
-    if text in [
-        "1",
-        "select",
-        "select recommended",
-        "select recommended train",
-        "book recommended",
-        "book the recommended train",
-        "recommended",
-    ]:
-
-        return results[0]
-
-    # ----------------------------------------------------------
-    # Numeric menu selection
-    # ----------------------------------------------------------
-
-    if text.isdigit():
-
-        number = int(text)
-
-        if 1 <= number <= len(results):
-
-            return results[number - 1]
-
-    # ----------------------------------------------------------
-    # Train number
-    # ----------------------------------------------------------
-
-    words = text.replace(
-        "-",
-        " "
-    ).split()
-
-    for word in words:
-
-        if word.isdigit():
-
-            option = find_train_by_number(
-                results,
-                word,
-            )
-
-            if option:
-
-                return option
-
-    return None
-
-
-# ==============================================================
-# CHEAPEST
-# ==============================================================
-
-def cheapest_train(results):
-
-    available = [
-
-        r for r in results
-
-        if r.availability == "AVAILABLE"
-    ]
-
-    if not available:
-        available = results
-
-    return min(
-        available,
-        key=lambda x:
-            x.fare_per_passenger
-            if x.fare_per_passenger is not None
-            else 999999999,
-    )
-
-
-# ==============================================================
-# FASTEST
-# ==============================================================
-
-def duration_minutes(duration):
-
-    try:
-
-        parts = duration.lower().split()
-
-        hours = 0
-        minutes = 0
-
-        for part in parts:
-
-            if part.endswith("h"):
-                hours = int(
-                    part[:-1]
-                )
-
-            elif part.endswith("m"):
-                minutes = int(
-                    part[:-1]
-                )
-
-        return (
-            hours * 60
-            + minutes
-        )
-
-    except Exception:
-
-        return 999999
-
-
-def fastest_train(results):
-
-    return min(
-        results,
-        key=lambda x:
-            duration_minutes(
-                x.duration
-            ),
-    )
-
-
-# ==============================================================
-# BOOKING REVIEW
-# ==============================================================
-
-def print_booking_review(
-    request,
-    selected,
-):
+def print_booking_review(request, option):
 
     print("\n")
     print("=" * 70)
@@ -351,14 +201,12 @@ def print_booking_review(
     print("\n⚠ DEMO MODE")
 
     print(
-        f"\nTrain: "
-        f"{selected.train_number} — "
-        f"{selected.train_name}"
+        f"\nTrain: {option['train_number']} — "
+        f"{option['train_name']}"
     )
 
     print(
-        f"Journey: "
-        f"{request.origin} → "
+        f"Journey: {request.origin} → "
         f"{request.destination}"
     )
 
@@ -367,46 +215,40 @@ def print_booking_review(
     )
 
     print(
-        f"Departure: "
-        f"{selected.departure}"
+        f"Departure: {option['departure']}"
     )
 
     print(
-        f"Arrival: "
-        f"{selected.arrival}"
+        f"Arrival: {option['arrival']}"
     )
 
     print(
-        f"Duration: "
-        f"{selected.duration}"
+        f"Duration: {option['duration']}"
     )
 
     print(
-        f"Class: "
-        f"{selected.travel_class}"
+        f"Class: {option['travel_class']}"
     )
 
     print(
-        f"Availability: "
-        f"{selected.availability}"
+        f"Availability: {option['availability']}"
     )
 
     print(
-        f"Passengers: "
-        f"{request.passengers}"
+        f"Passengers: {request.passengers}"
     )
 
     print(
         f"Fare per passenger: "
-        f"₹{selected.fare_per_passenger}"
+        f"₹{option['fare_per_passenger']}"
     )
 
     print(
         f"Estimated total fare: "
-        f"₹{selected.total_fare}"
+        f"₹{option['total_fare']}"
     )
 
-    print("\n----------------------------------------")
+    print("\n" + "-" * 40)
 
     print(
         "This is a booking review only."
@@ -422,14 +264,7 @@ def print_booking_review(
     print("2. Go back")
 
 
-# ==============================================================
-# SECURE HANDOFF
-# ==============================================================
-
-def print_booking_handoff(
-    request,
-    selected,
-):
+def booking_handoff():
 
     print("\n")
     print("=" * 70)
@@ -437,38 +272,13 @@ def print_booking_handoff(
     print("=" * 70)
 
     print(
-        f"\nSelected train: "
-        f"{selected.train_number} — "
-        f"{selected.train_name}"
+        "\nRailMate is ready to hand off the "
+        "booking to an authorized railway provider."
     )
 
     print(
-        f"Journey: "
-        f"{request.origin} → "
-        f"{request.destination}"
+        "\nRailMate does NOT collect or store:"
     )
-
-    print(
-        f"Date: "
-        f"{request.journey_date}"
-    )
-
-    print(
-        f"Class: "
-        f"{request.travel_class}"
-    )
-
-    print(
-        f"Passengers: "
-        f"{request.passengers}"
-    )
-
-    print(
-        f"Estimated fare: "
-        f"₹{selected.total_fare}"
-    )
-
-    print("\nRailMate does NOT collect or store:")
 
     print("• Railway password")
     print("• OTP")
@@ -478,190 +288,190 @@ def print_booking_handoff(
     print("• UPI PIN")
 
     print(
-        "\nAuthentication and payment must happen "
-        "directly with an authorized provider."
+        "\nIn the live version, the authorized "
+        "provider will handle authentication "
+        "and payment."
     )
 
     print(
-        "\n⚠ Current prototype:"
-    )
-
-    print(
-        "Booking handoff is simulated."
+        "\n🚧 LIVE BOOKING PROVIDER INTEGRATION "
+        "WILL BE ADDED IN A FUTURE VERSION."
     )
 
 
-# ==============================================================
-# MAIN
-# ==============================================================
+def normalize_text(text):
+
+    return text.strip().lower()
+
 
 def main():
 
-    request = TravelRequest()
+    print("=" * 70)
+    print("🤖 RAILMATE AI AGENT v0.6")
+    print("=" * 70)
 
-    results = []
+    print("\nPowered by Ollama + Llama 3.2")
+    print("Local AI — No API key required")
 
-    selected_train = None
+    print("\n⚠ Railway information is currently DEMO data.")
+
+    print("\nType 'exit' to quit.")
+    print("💡 You can speak naturally with RailMate.")
 
     state = STATE_COLLECTING
 
-    # Create ONE agent for the session
-    tool_agent = RailMateToolAgent()
+    request = TravelRequest()
 
-    print("=" * 70)
-    print("🤖 RAILMATE AI AGENT v0.5")
-    print("=" * 70)
+    selected_option = None
 
-    print(
-        "\nPowered by Ollama + Llama 3.2"
-    )
-
-    print(
-        "Local AI — No API key required"
-    )
-
-    print(
-        "\n⚠ Railway information is currently DEMO data."
-    )
-
-    print(
-        "\nType 'exit' to quit."
-    )
-
-    print(
-        "\n💡 You can speak naturally with RailMate."
-    )
+    agent = RailMateToolAgent()
 
     while True:
 
         try:
-
-            user_input = input(
-                "\nYou: "
-            ).strip()
-
-        except KeyboardInterrupt:
-
-            print(
-                "\n\nRailMate: Goodbye! 🚆"
-            )
-
+            user_input = input("\nYou: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\n\nRailMate: Goodbye! 🚆")
             break
 
         if not user_input:
             continue
 
-        # ======================================================
-        # EXIT
-        # ======================================================
+        if normalize_text(user_input) == "exit":
 
-        if user_input.lower() in [
-            "exit",
-            "quit",
-        ]:
-
-            print(
-                "\nRailMate: Goodbye! 🚆"
-            )
-
+            print("\nRailMate: Goodbye! 🚆")
             break
 
         # ======================================================
-        # BOOKING REVIEW
+        # COLLECTING TRAVEL INFORMATION
         # ======================================================
 
-        if state == STATE_BOOKING_REVIEW:
+        if state == STATE_COLLECTING:
 
-            text = user_input.lower()
+            new_request = extract_request(
+                user_input,
+                existing_request=request
+            )
 
-            if text in [
-                "1",
-                "yes",
-                "confirm",
-                "continue",
-                "proceed",
-                "book",
-            ]:
+            request = new_request
 
-                print_booking_handoff(
-                    request,
-                    selected_train,
+            print_request(request)
+
+            missing = missing_information(request)
+
+            if missing:
+
+                question = generate_question(
+                    missing[0]
                 )
 
                 print(
-                    "\nRailMate: "
-                    "Booking workflow completed "
-                    "for this prototype."
-                )
-
-                print(
-                    "\nYou can start another search "
-                    "or type 'exit'."
-                )
-
-                state = STATE_COLLECTING
-
-                continue
-
-            elif text in [
-                "2",
-                "back",
-                "go back",
-            ]:
-
-                state = STATE_RESULTS
-
-                print_train_options(
-                    results
-                )
-
-                print_recommendation(
-                    request,
-                    results,
-                    "The recommendation remains unchanged."
+                    f"\nRailMate: {question}"
                 )
 
                 continue
 
-            else:
+            print(
+                "\n🤖 RailMate Agent is planning "
+                "your railway search..."
+            )
+
+            options = agent.run(
+                user_input,
+                request
+            )
+
+            if not options:
 
                 print(
-                    "\nPlease enter 1 to continue "
-                    "or 2 to go back."
+                    "\nRailMate: I couldn't find "
+                    "a suitable train."
                 )
 
                 continue
+
+            print_options(options)
+
+            best = options[0]
+
+            explanation = agent.explain(best)
+
+            print_recommendation(
+                best,
+                explanation
+            )
+
+            print("\nWhat would you like to do?")
+
+            print("1. Select recommended train")
+            print("2. See all train options")
+            print("3. Change preferences")
+            print("4. Start a new search")
+
+            print(
+                "\nYou can also ask naturally:"
+            )
+
+            print('• "Show me the cheapest"')
+            print('• "Show me the fastest"')
+            print('• "Show only confirmed seats"')
+            print('• "Show trains after 6 PM"')
+            print('• "I need to arrive before 6 AM"')
+            print('• "Compare 16221 and 12610"')
+            print('• "Why did you choose this train?"')
+
+            state = STATE_RESULTS
+
+            continue
 
         # ======================================================
-        # RESULTS STATE
+        # RESULTS / FOLLOW-UP REASONING
         # ======================================================
 
         if state == STATE_RESULTS:
 
-            text = user_input.lower().strip()
+            text = normalize_text(user_input)
+
+            options = agent.last_recommendations
 
             # --------------------------------------------------
-            # SHOW OPTIONS
+            # RECOMMENDED TRAIN
             # --------------------------------------------------
 
-            if text in [
-                "2",
-                "show",
-                "show options",
-                "show all",
-                "show trains",
-                "options",
-            ]:
+            if (
+                text in {
+                    "1",
+                    "select",
+                    "select recommended",
+                    "book recommended",
+                    "select recommended train",
+                    "book recommended train",
+                }
+            ):
 
-                print_train_options(
-                    results
-                )
+                selected_option = options[0]
 
-                print_recommendation(
+                print_booking_review(
                     request,
-                    results,
-                    "These are the current ranked options."
+                    selected_option
                 )
+
+                state = STATE_REVIEW
+                continue
+
+            # --------------------------------------------------
+            # SHOW ALL
+            # --------------------------------------------------
+
+            if text in {
+                "2",
+                "show all",
+                "show all options",
+                "all trains",
+                "show trains",
+            }:
+
+                print_options(options)
 
                 continue
 
@@ -669,36 +479,18 @@ def main():
             # CHANGE PREFERENCES
             # --------------------------------------------------
 
-            if text in [
+            if text in {
                 "3",
                 "change",
                 "change preferences",
-                "modify",
-                "modify preferences",
-            ]:
+            }:
+
+                print(
+                    "\nRailMate: Tell me what you "
+                    "would like to change."
+                )
 
                 state = STATE_COLLECTING
-
-                print(
-                    "\nRailMate: "
-                    "Tell me what you would like to change."
-                )
-
-                print(
-                    "For example:"
-                )
-
-                print(
-                    "• Make it 3A"
-                )
-
-                print(
-                    "• I want morning trains"
-                )
-
-                print(
-                    "• Change passengers to 3"
-                )
 
                 continue
 
@@ -706,222 +498,399 @@ def main():
             # NEW SEARCH
             # --------------------------------------------------
 
-            if text in [
+            if text in {
                 "4",
-                "new",
                 "new search",
-                "start new search",
-                "restart",
-            ]:
+                "start a new search",
+            }:
 
                 request = TravelRequest()
-
-                results = []
-
-                selected_train = None
+                selected_option = None
 
                 state = STATE_COLLECTING
 
-                tool_agent = RailMateToolAgent()
-
                 print(
-                    "\n🔄 Starting a new journey search."
+                    "\nRailMate: Sure. "
+                    "Where would you like to travel?"
                 )
 
                 continue
 
             # --------------------------------------------------
-            # SELECT TRAIN
+            # CHEAPEST
             # --------------------------------------------------
 
-            selected = select_train(
-                results,
-                user_input,
-            )
+            if "cheap" in text or "lowest fare" in text:
 
-            # Cheapest
-            if selected is None and (
-                "cheapest" in text
-                or "lowest fare" in text
-                or "least expensive" in text
+                result = find_cheapest(options)
+
+                print_single_option(
+                    result,
+                    "💰 CHEAPEST TRAIN"
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # FASTEST
+            # --------------------------------------------------
+
+            if "fastest" in text or "shortest" in text:
+
+                result = find_fastest(options)
+
+                print_single_option(
+                    result,
+                    "⚡ FASTEST TRAIN"
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # EARLIEST
+            # --------------------------------------------------
+
+            if "earliest" in text:
+
+                result = find_earliest(options)
+
+                print_single_option(
+                    result,
+                    "🌅 EARLIEST DEPARTURE"
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # LATEST
+            # --------------------------------------------------
+
+            if "latest" in text:
+
+                result = find_latest(options)
+
+                print_single_option(
+                    result,
+                    "🌙 LATEST DEPARTURE"
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # CONFIRMED ONLY
+            # --------------------------------------------------
+
+            if (
+                "confirmed" in text
+                or "confirmed seats" in text
+                or "only available" in text
             ):
 
-                selected = cheapest_train(
-                    results
+                result = filter_confirmed(options)
+
+                print_options(
+                    result,
+                    "🎫 CONFIRMED AVAILABILITY"
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # AFTER TIME
+            # --------------------------------------------------
+
+            if "after 6 pm" in text or "after 6pm" in text:
+
+                result = filter_after_time(
+                    options,
+                    "18:00"
+                )
+
+                print_options(
+                    result,
+                    "🕕 TRAINS AFTER 6 PM"
+                )
+
+                continue
+
+            if "after 5 pm" in text or "after 5pm" in text:
+
+                result = filter_after_time(
+                    options,
+                    "17:00"
+                )
+
+                print_options(
+                    result,
+                    "🕔 TRAINS AFTER 5 PM"
+                )
+
+                continue
+
+            if "after 7 pm" in text or "after 7pm" in text:
+
+                result = filter_after_time(
+                    options,
+                    "19:00"
+                )
+
+                print_options(
+                    result,
+                    "🕖 TRAINS AFTER 7 PM"
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # ARRIVAL BEFORE
+            # --------------------------------------------------
+
+            if "before 6 am" in text or "before 6am" in text:
+
+                result = filter_before_arrival(
+                    options,
+                    "06:00"
+                )
+
+                print_options(
+                    result,
+                    "⏰ TRAINS ARRIVING BEFORE 6 AM"
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # WHY
+            # --------------------------------------------------
+
+            if (
+                "why" in text
+                or "why this train" in text
+                or "why did you choose" in text
+            ):
+
+                explanation = agent.explain(
+                    options[0]
                 )
 
                 print(
-                    f"\n💰 Cheapest available option: "
-                    f"{selected.train_number}"
+                    "\n🤖 RailMate:"
                 )
 
-            # Fastest
-            if selected is None and (
-                "fastest" in text
-                or "quickest" in text
-                or "shortest" in text
-            ):
+                print(explanation)
 
-                selected = fastest_train(
-                    results
-                )
-
-                print(
-                    f"\n⚡ Fastest option: "
-                    f"{selected.train_number}"
-                )
+                continue
 
             # --------------------------------------------------
-            # TRAIN SELECTED
+            # COMPARE
             # --------------------------------------------------
 
-            if selected:
+            if "compare" in text:
 
-                selected_train = selected
+                numbers = []
+
+                for option in options:
+
+                    if option["train_number"] in user_input:
+
+                        numbers.append(
+                            option["train_number"]
+                        )
+
+                if len(numbers) >= 2:
+
+                    comparison = compare_trains(
+                        options,
+                        numbers
+                    )
+
+                    print_options(
+                        comparison,
+                        "⚖ TRAIN COMPARISON"
+                    )
+
+                else:
+
+                    print(
+                        "\nRailMate: Please tell me "
+                        "the train numbers you want "
+                        "to compare."
+                    )
+
+                    print(
+                        'Example: "Compare 16221 and 12610"'
+                    )
+
+                continue
+
+            # --------------------------------------------------
+            # DIRECT TRAIN SELECTION
+            # --------------------------------------------------
+
+            found = None
+
+            for option in options:
+
+                if option["train_number"] in user_input:
+
+                    found = option
+                    break
+
+            if found:
+
+                selected_option = found
 
                 print_booking_review(
                     request,
-                    selected_train,
+                    selected_option
                 )
 
-                state = STATE_BOOKING_REVIEW
+                state = STATE_REVIEW
+
+                continue
+
+            # --------------------------------------------------
+            # 3A / CLASS CHANGE
+            # --------------------------------------------------
+
+            if "3a" in text:
+
+                request.travel_class = "3A"
+
+                print(
+                    "\nRailMate: Switching to 3A "
+                    "and recalculating options..."
+                )
+
+                options = agent.run(
+                    "Change travel class to 3A",
+                    request
+                )
+
+                print_options(options)
+
+                print_recommendation(
+                    options[0],
+                    agent.explain(options[0])
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # 2A
+            # --------------------------------------------------
+
+            if "2a" in text:
+
+                request.travel_class = "2A"
+
+                print(
+                    "\nRailMate: Switching to 2A "
+                    "and recalculating options..."
+                )
+
+                options = agent.run(
+                    "Change travel class to 2A",
+                    request
+                )
+
+                print_options(options)
+
+                continue
+
+            # --------------------------------------------------
+            # UNKNOWN FOLLOW-UP
+            # --------------------------------------------------
+
+            print(
+                "\nRailMate: I can help with:"
+            )
+
+            print(
+                "• cheapest"
+            )
+
+            print(
+                "• fastest"
+            )
+
+            print(
+                "• confirmed seats"
+            )
+
+            print(
+                "• departure time"
+            )
+
+            print(
+                "• arrival deadline"
+            )
+
+            print(
+                "• train comparison"
+            )
+
+            print(
+                "• class changes"
+            )
+
+            print(
+                "• train selection"
+            )
+
+            continue
+
+        # ======================================================
+        # BOOKING REVIEW
+        # ======================================================
+
+        if state == STATE_REVIEW:
+
+            text = normalize_text(user_input)
+
+            if text in {
+                "1",
+                "yes",
+                "confirm",
+                "continue",
+                "proceed",
+                "book",
+                "continue booking",
+            }:
+
+                booking_handoff()
+
+                state = STATE_RESULTS
+
+                print(
+                    "\nRailMate: You are back at "
+                    "the train results."
+                )
+
+                continue
+
+            if text in {
+                "2",
+                "back",
+                "go back",
+                "cancel",
+            }:
+
+                print_options(
+                    agent.last_recommendations
+                )
+
+                state = STATE_RESULTS
 
                 continue
 
             print(
-                "\nRailMate: "
-                "I couldn't identify that train choice."
+                "\nPlease choose:"
             )
 
-            print(
-                "Try:"
-            )
+            print("1. Continue")
+            print("2. Go back")
 
-            print(
-                "1"
-            )
-
-            print(
-                "train number such as 16221"
-            )
-
-            print(
-                '"show cheapest"'
-            )
-
-            print(
-                '"show fastest"'
-            )
-
-            print(
-                '"change preferences"'
-            )
-
-            continue
-
-        # ======================================================
-        # COLLECTING STATE
-        # ======================================================
-
-        request = extract_request(
-            user_input,
-            request,
-        )
-
-        print_request(
-            request
-        )
-
-        missing = missing_information(
-            request
-        )
-
-        # ======================================================
-        # MISSING INFORMATION
-        # ======================================================
-
-        if missing:
-
-            question = generate_question(
-                missing
-            )
-
-            print(
-                f"\nRailMate: {question}"
-            )
-
-            continue
-
-        # ======================================================
-        # COMPLETE REQUEST
-        # ======================================================
-
-        print(
-            "\n🤖 RailMate Agent is planning "
-            "your railway search..."
-        )
-
-        # ======================================================
-        # TRUE TOOL AGENT
-        # ======================================================
-
-        explanation = tool_agent.run(
-
-            """
-Use the railway tools to search the route,
-verify the requested class and determine
-the best available train according to
-the user's preferences.
-
-The application will display the final
-ranked railway options.
-""",
-
-            request,
-        )
-
-        results = (
-            tool_agent.last_recommendations
-        )
-
-        # ======================================================
-        # NO RESULTS
-        # ======================================================
-
-        if not results:
-
-            print(
-                "\nRailMate: "
-                "No suitable demo trains were found."
-            )
-
-            print(
-                "\nYou can change your route, "
-                "class or travel preferences."
-            )
-
-            continue
-
-        # ======================================================
-        # DISPLAY RESULTS
-        # ======================================================
-
-        print_train_options(
-            results
-        )
-
-        print_recommendation(
-            request,
-            results,
-            explanation,
-        )
-
-        state = STATE_RESULTS
-
-
-# ==============================================================
-# START
-# ==============================================================
 
 if __name__ == "__main__":
     main()

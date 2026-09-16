@@ -3,7 +3,10 @@ import ollama
 
 from agent.schemas import TravelRequest
 from tools.train_search import search_trains
-from tools.recommendation import recommend_trains
+from tools.recommendation import (
+    recommend_trains,
+    filter_before_arrival,
+)
 
 
 MODEL = "llama3.2"
@@ -220,18 +223,20 @@ class RailMateToolAgent:
             "\n🧠 RECOMMEND_TRAINS"
         )
 
+        # recommend_trains() is responsible only for deterministic
+        # ranking. Arrival deadlines are applied separately.
         results = recommend_trains(
-
             trains=self.last_trains,
-
             travel_class=travel_class,
-
             passengers=int(passengers),
-
             preference=preference,
-
-            arrival_before=arrival_before,
         )
+
+        if arrival_before:
+            results = filter_before_arrival(
+                results,
+                arrival_before,
+            )
 
         self.last_recommendations = results
 
@@ -251,34 +256,34 @@ class RailMateToolAgent:
                         index + 1,
 
                     "train_number":
-                        r.train_number,
+                        r["train_number"],
 
                     "train_name":
-                        r.train_name,
+                        r["train_name"],
 
                     "departure":
-                        r.departure,
+                        r["departure"],
 
                     "arrival":
-                        r.arrival,
+                        r["arrival"],
 
                     "duration":
-                        r.duration,
+                        r["duration"],
 
                     "travel_class":
-                        r.travel_class,
+                        r["travel_class"],
 
                     "availability":
-                        r.availability,
+                        r["availability"],
 
                     "fare_per_passenger":
-                        r.fare_per_passenger,
+                        r["fare_per_passenger"],
 
                     "total_fare":
-                        r.total_fare,
+                        r["total_fare"],
 
                     "score":
-                        r.score,
+                        r["score"],
                 }
 
                 for index, r
@@ -826,34 +831,34 @@ The Python application has selected
 this exact train:
 
 Train:
-{best.train_number} — {best.train_name}
+{best["train_number"]} — {best["train_name"]}
 
 Departure:
-{best.departure}
+{best["departure"]}
 
 Arrival:
-{best.arrival}
+{best["arrival"]}
 
 Duration:
-{best.duration}
+{best["duration"]}
 
 Class:
-{best.travel_class}
+{best["travel_class"]}
 
 Availability:
-{best.availability}
+{best["availability"]}
 
 Fare per passenger:
-₹{best.fare_per_passenger}
+₹{best["fare_per_passenger"]}
 
 Passengers:
 {request.passengers}
 
 Estimated total:
-₹{best.total_fare}
+₹{best["total_fare"]}
 
 Score:
-{best.score}
+{best["score"]}
 
 User preference:
 {request.preference}
@@ -906,4 +911,67 @@ Mention that this is DEMO data.
             "",
         )
 
-        return explanation
+        return self.last_recommendations
+
+    # ==========================================================
+    # EXPLAIN A DETERMINISTIC RECOMMENDATION
+    # ==========================================================
+
+    def explain(self, option):
+        """Ask Ollama to explain an already-selected option only."""
+        if not option:
+            return "No train has been selected for explanation."
+
+        explanation_prompt = f"""
+Explain why this exact train was recommended by the Python
+application. Do not select or change the train.
+
+Train:
+{option["train_number"]} — {option["train_name"]}
+
+Departure:
+{option["departure"]}
+
+Arrival:
+{option["arrival"]}
+
+Duration:
+{option["duration"]}
+
+Class:
+{option["travel_class"]}
+
+Availability:
+{option["availability"]}
+
+Fare per passenger:
+₹{option["fare_per_passenger"]}
+
+Estimated total:
+₹{option["total_fare"]}
+
+Agent score:
+{option["score"]}
+
+Explain briefly using only these facts.
+Mention that the railway information is DEMO data.
+Do not invent information.
+"""
+
+        response = ollama.chat(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content":
+                        "Explain the application's deterministic "
+                        "decision without changing any facts."
+                },
+                {
+                    "role": "user",
+                    "content": explanation_prompt
+                },
+            ],
+        )
+
+        return response["message"].get("content", "")

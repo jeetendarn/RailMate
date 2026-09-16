@@ -410,9 +410,18 @@ def generate_question(missing):
     if not missing:
         return None
 
-    return questions[missing[0]]
+    # Defensive handling:
+    # If a single field name is passed instead of a list,
+    # convert it into a list first.
+    if isinstance(missing, str):
+        missing = [missing]
 
+    return questions.get(
+        missing[0],
+        "What additional travel information would you like to provide?"
+    )
 
+    
 def search_and_recommend(request):
 
     trains = search_trains(
